@@ -11,6 +11,8 @@ from flask import Flask, render_template, request
 from application import db
 from application.models import Data
 from application.forms import EnterDBInfo, RetrieveDBInfo
+import pymysql.cursors
+import csv
 
 # Elastic Beanstalk initalization
 application = Flask(__name__)
@@ -18,6 +20,7 @@ application.debug=True
 # change this to your own value
 application.secret_key = 'cC1YCIWOj9GgWspgNEo2'   
 
+            
 @application.route('/', methods=['GET', 'POST'])
 @application.route('/index', methods=['GET', 'POST'])
 def index():
@@ -45,6 +48,25 @@ def index():
             db.session.rollback()
         return render_template('results.html', results=query_db, num_return=num_return)                
     
+    return render_template('index.html', form1=form1, form2=form2)
+@application.route('/dump',methods=['GET','POST'])
+def dump():
+    form1 = EnterDBInfo(request.form) 
+    form2 = RetrieveDBInfo(request.form) 
+    connection = pymysql.connect(host='database-1.c6lvlt1bior5.us-east-2.rds.amazonaws.com',
+                                user='admin',
+                                password='adminpassword',
+                                db='db1')
+
+    cursor = connection.cursor()
+    sql = "SELECT * FROM data"
+    cursor.execute(sql)
+
+    rows = cursor.fetchall()
+    fp = open('output.csv', 'w')
+    myFile = csv.writer(fp)
+    myFile.writerows(rows)
+    fp.close()
     return render_template('index.html', form1=form1, form2=form2)
 
 if __name__ == '__main__':
