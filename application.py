@@ -7,12 +7,16 @@ Author: Scott Rodkey - rodkeyscott@gmail.com
 Step-by-step tutorial: https://medium.com/@rodkey/deploying-a-flask-application-on-aws-a72daba6bb80
 '''
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_file
 from application import db
 from application.models import Data
 from application.forms import EnterDBInfo, RetrieveDBInfo
 import pymysql.cursors
 import csv
+import boto
+from boto.s3.key import Key
+import pandas as pd
+from io import BytesIO
 
 # Elastic Beanstalk initalization
 application = Flask(__name__)
@@ -60,14 +64,25 @@ def dump():
 
     cursor = connection.cursor()
     sql = "SELECT * FROM data"
-    cursor.execute(sql)
+    
+    df = pd.read_sql(sql, connection)
+    print('df')
+    df.to_csv()
+    print(df)
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    df.to_excel(writer, sheet_name='Sheet1',index=False)
+    writer.close()
+    output.seek(0)
+    print('done')
 
-    rows = cursor.fetchall()
-    fp = open('output.csv', 'w')
-    myFile = csv.writer(fp)
-    myFile.writerows(rows)
-    fp.close()
-    return render_template('index.html', form1=form1, form2=form2)
+    del df
+
+    connection.close()
+    cursor.close()
+
+    return send_file(output, attachment_filename="testing.xlsx", as_attachment=True)
+    #return render_template('index.html', form1=form1, form2=form2)
 
 if __name__ == '__main__':
     application.run(host='0.0.0.0')
